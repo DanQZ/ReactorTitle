@@ -8,8 +8,10 @@ July 2 v0.0.1: beginning
 -can spawn cities: generates money
 -can spawn power lines
 -power lines detect nearby power lines
--so
 
+Aug 15 v0.01b: beginnings part 2
+-revamped power system into power grids instead of every part being dynamic
+-will reuse spreading code into heat spreading later
 
 */
 
@@ -17,8 +19,8 @@ let money;
 let incomePerTick;
 
 let mousePos;
-let mapWidth;
 let mapHeight;
+let mapWidth;
 
 let hoveredTile;
 let selectedTile;
@@ -31,6 +33,7 @@ let tick;
 let nextTickFrame;
 
 let mapGrid;
+let allPowerGrids;
 let allStructures;
 let allCities;
 let allPowerLines;
@@ -41,9 +44,9 @@ let canvasWidth;
 let canvasHeight;
 
 class WorldTile {
-	constructor(type, posYX) {
-		this.yx = posYX;
-		this.pixelYX = [posYX[0] * tilePixelInterval, posYX[1] * tilePixelInterval];
+	constructor(type, posXY) {
+		this.XY = posXY;
+		this.pixelXY = [posXY[0] * tilePixelInterval, posXY[1] * tilePixelInterval];
 		this.tileType = type;
 
 		this.mainStructure = null; // only 1 of main building on tile
@@ -53,7 +56,7 @@ class WorldTile {
 		this.difficultTerrainLevel;
 
 
-		// defaults all to 1
+		// defaults all to 1x
 
 		this.maintenanceMultiplier = 1;
 
@@ -69,7 +72,7 @@ class WorldTile {
 
 		switch (type) {
 			case "plains":
-				this.maintenanceMultiplier = 0.75; // relatively peaceful
+				this.maintenanceMultiplier = 1; // relatively peaceful
 
 				this.solarMultiplier = 1;
 				this.windMultiplier = 1.5;
@@ -81,7 +84,7 @@ class WorldTile {
 				this.researchMultiplier = 1;
 				break;
 			case "river":
-				this.maintenanceMultiplier = 1.25;
+				this.maintenanceMultiplier = 2;
 
 				this.solarMultiplier = 1;
 				this.windMultiplier = 1;
@@ -93,7 +96,7 @@ class WorldTile {
 				this.researchMultiplier = 1;
 				break;
 			case "desertHot":
-				this.maintenanceMultiplier = 1.25;
+				this.maintenanceMultiplier = 2;
 
 				this.solarMultiplier = 2;
 				this.windMultiplier = 1.25;
@@ -105,7 +108,7 @@ class WorldTile {
 				this.researchMultiplier = 1.5;
 				break;
 			case "desertCold":
-				this.maintenanceMultiplier = 2;
+				this.maintenanceMultiplier = 5;
 
 				this.solarMultiplier = 0.66;
 				this.windMultiplier = 1.5;
@@ -117,7 +120,7 @@ class WorldTile {
 				this.researchMultiplier = 5;
 				break;
 			case "waterfall":
-				this.maintenanceMultiplier = 1.1; // water spray? lol
+				this.maintenanceMultiplier = 5; // water spray? lol
 
 				this.solarMultiplier = 1;
 				this.windMultiplier = 1.25;
@@ -158,14 +161,135 @@ class WorldTile {
 	Update() {
 
 	}
-
 }
 
-class MainStructure {
+class PowerGrid { // a group of things connected by power lines
+	constructor() {
+		this.gridIndex = allPowerGrids.length;
+		this.allStructures = [];
+
+		this.powerSupplyMax = 0;
+		this.powerSupply = 0;
+		this.powerGeneration = 0;
+		this.powerConsumption = 0;
+		this.maintenanceCost = 0;
+	}
+
+	Update() {
+		this.allStructures.forEach(structure => {
+			switch (structure.structType) {
+				case "city":
+					this.powerConsumption += structure.consumption;
+					break;
+				case "powerLine":
+					this.maintenanceCost += structure.maintenanceCost;
+					break;
+				case "solarPanel":
+					this.powerGeneration += structure.powerProduction;
+					break;
+			}
+		});
+	}
+
+	Tick() {
+		// generates power
+		this.powerSupply += this.powerGeneration;
+		if (this.powerSupply > this.powerSupplyMax) {
+			this.powerSupply = this.powerSupplyMax;
+		}
+
+		// depletes power for money
+		let powerConsumed = 0;
+		if (this.powerSupply >= this.powerConsumption) {
+			powerConsumed = this.powerConsumption;
+			this.powerSupply -= this.powerConsumption;
+		}
+		else {
+			powerConsumed = this.powerSupply;
+			this.powerSupply = 0;
+		}
+		money += powerConsumed;
+	}
+}
+
+function AddToPowerGrid(newStructure) {
+
+	// find adjacent structures
+	let adjTiles = GetAdjacentTiles(newStructure.parentTile);
+	let adjTileStructures = [];
+	adjTiles.forEach(tile => {
+		if (tile.mainStructure != null) {
+			adjTileStructures.push(tile.mainStructure);
+		}
+		if(tile.infrastructure != null){
+			adjTileStructures.push(tile.infrastructure);
+		}
+	});
+
+	console.log("new structure touching " + adjTileStructures.length + " structures");
+
+	if (adjTileStructures.length == 0) {// if there are no structures, create new PowerGrid
+		console.log("structure created new power grid")
+		let newPowerGrid = new PowerGrid();
+		allPowerGrids.push(newPowerGrid);
+		newStructure.parentGrid = newPowerGrid;
+		newPowerGrid.allStructures.push(newStructure);
+	}
+	else {
+		if (adjTileStructures.length == 1) { // if there is touching 1 power grid
+			console.log("structure added to existing grid");
+			adjTileStructures[0].parentGrid.allStructures.push(newStructure);
+			newStructure.parentGrid = adjTileStructures[0].parentGrid;
+		}
+		else { 
+			console.log("structure touches multiple structures, if multiple grids combine them");
+			// if it touches >1 structures, check if they are the same power grid
+			//if different power grids, make all structures in one of them part of the first power grid, delete unused grid
+			let dominantGrid = adjTileStructures[0].parentGrid;
+			newStructure.parentGrid = dominantGrid;
+			dominantGrid.allStructures.push(newStructure);
+			let gridsToBeDeleted = [];
+			adjTileStructures.forEach(structure => {
+				if (structure.parentGrid != dominantGrid) {
+					gridsToBeDeleted.push(structure.parentGrid);
+					structure.parentGrid.allStructures.forEach(structureToBeMoved => {
+						structureToBeMoved.parentGrid = dominantGrid;
+						dominantGrid.allStructures.push(structureToBeMoved);
+					});
+
+					// delete gridsToBeDeleted from allPowerGrids
+					gridsToBeDeleted.forEach(grid => {
+						for(let i = 0; i < allPowerGrids.length; i++){
+							if(allPowerGrids[i] == grid){
+								allPowerGrids.splice(i, 1);
+								break;
+							}
+						}
+					});
+				}
+			});
+		}
+	}
+}
+
+function RemoveFromPowerGrid(structure) { // makes sure the power grid is still connected, otherwise make a new power grid for the separated part
+	GetAdjacentTiles(structure.parentTile);
+}
+
+class Structure {
+	constructor(parentTile) {
+		this.structureImage;
+		this.XY;
+	}
+}
+
+class MainStructure extends Structure {
 	constructor(parentTile) {
 
-		this.structureImage;
-		this.xy;
+		super(parentTile);
+
+		this.parentGrid;
+
 		this.baseBuildPrice = 0;
 
 		this.structCategory = "default";
@@ -174,7 +298,6 @@ class MainStructure {
 
 		this.maintenanceCost = null;
 	}
-
 }
 
 class CityStructure extends MainStructure {
@@ -200,8 +323,9 @@ class CityStructure extends MainStructure {
 			this.consumption *= 2;
 			this.growth = 1.05;
 		}
-		
+
 		allCities.push(this);
+		AddToPowerGrid(this);
 		this.Update();
 	}
 
@@ -225,11 +349,11 @@ class CityStructure extends MainStructure {
 	}
 
 	Update() {
-		this.CheckSurroundingTiles();
+		this.UpdateSelf();
 		UpdateAroundTile(this.parentTile);
 	}
 
-	CheckSurroundingTiles() {
+	UpdateSelf() {
 
 	}
 }
@@ -241,7 +365,9 @@ class PowerLineStructure extends MainStructure {
 		this.structureImage = powerLineImage;
 
 		this.powerSupply = 0;
+		this.nextTickPowerSupply = 0;
 		this.powerSupplyMax = 10;
+		this.maintenanceCost = null;
 
 		this.structCategory = "infrastructure";
 		this.structType = "powerLine";
@@ -251,14 +377,35 @@ class PowerLineStructure extends MainStructure {
 		this.adjCities = [];
 	}
 
+	Init() {
+		allPowerLines.push(this);
+		this.Update();
+		AddToPowerGrid(this);
+	}
+
 	Tick() {
-		this.adjPowerLines.forEach(adjLine => { // spreading power across other power lines
-			if (this.powerSupply != adjLine.powerSupply) { // works for both pos and neg power supply diff
-				let diff = this.powerSupply - adjLine.powerSupply;
-				this.powerSupply -= diff / 2;
-				adjLine.powerSupply += diff / 2;
-			}
-		});
+
+	}
+
+	Update() {
+		this.UpdateSelf();
+		UpdateAroundTile(this.parentTile);
+	}
+
+	UpdateSelf() {
+
+	}
+}
+
+// finish later
+class HeatPipeStructure extends MainStructure {
+
+	// will use this code for heat spreading instead of power spreading
+	/* 
+	
+	Tick() {
+
+		this.SpreadPower();
 
 		let fairShare = this.powerSupply / this.adjCities.length;
 
@@ -284,9 +431,19 @@ class PowerLineStructure extends MainStructure {
 		}
 	}
 
-	Init() {
-		allPowerLines.push(this);
-		this.Update();
+	SpreadPower() {
+		if (this.powerSupply / this.powerSupplyMax >= 0.98) { // at or very close to max powerSupply
+
+		}
+		else {
+			this.adjPowerLines.forEach(adjLine => { // spreading power across other power lines
+				if (this.powerSupply != adjLine.powerSupply) { // works for both pos and neg power supply diff
+					let diff = this.powerSupply - adjLine.powerSupply;
+					this.powerSupply -= diff / 2;
+					adjLine.powerSupply += diff / 2;
+				}
+			});
+		}
 	}
 
 	Update() {
@@ -302,7 +459,7 @@ class PowerLineStructure extends MainStructure {
 		adjTiles.forEach(tile => {
 			if (tile.infrastructure != null) {
 				if (tile.infrastructure.structType == "powerLine") {
-					console.log("power line found at " + tile.yx[1] + ", " + tile.yx[0]);
+					console.log("power line found at " + tile.XY[1] + ", " + tile.XY[0]);
 					this.adjPowerLines.push(tile.infrastructure);
 				}
 			}
@@ -325,9 +482,10 @@ class PowerLineStructure extends MainStructure {
 
 		return output;
 	}
+	*/
 }
 
-class SolarPanelStructure extends MainStructure {
+class SolarPanelStructure extends Structure {
 	constructor(parentTile) {
 		super(parentTile);
 		this.structureImage = solarPanelImage;
@@ -349,26 +507,15 @@ class SolarPanelStructure extends MainStructure {
 	}
 
 	Tick() {
-		this.tickPowerLeft = this.powerProduction; // spread the power to each line
-		this.connectedLines.forEach(powerLine => {
-			if (this.tickPowerLeft > 0 && powerLine.powerSupply <= powerLine.powerSupplyMax) { // can give power
-				if (this.tickPowerLeft >= this.maxOutputPerConnection) {
-					powerLine.powerSupply += this.maxOutputPerConnection;
-				}
-				else {
-					powerLine.powerSupply += this.tickPowerLeft;
-				}
-				this.tickPowerLeft -= this.maxOutputPerConnection;
-			}
-		});
+		// parentGrid ticks instead of individual panels
 	}
 
 	Update() {
-		this.CheckSurroundingTiles();
+		this.UpdateSelf();
 		UpdateAroundTile(this.parentTile);
 	}
 
-	CheckSurroundingTiles() {
+	UpdateSelf() {
 		this.connectedLines = [];
 		let adjTiles = GetAdjacentTiles(this.parentTile);
 		adjTiles.forEach(tile => {
@@ -386,30 +533,56 @@ function UpdateAroundTile(targetTile) {
 	let adjTiles = GetAdjacentTiles(targetTile);
 	adjTiles.forEach(tile => {
 		if (tile.infrastructure != null) {
-			tile.infrastructure.CheckSurroundingTiles();
+			tile.infrastructure.UpdateSelf();
 		}
 		if (tile.mainStructure != null) {
-			tile.mainStructure.CheckSurroundingTiles();
+			tile.mainStructure.UpdateSelf();
 		}
 	});
-	console.log("///////////////");
 }
 
-function GetAdjacentTiles(targetTile) {
+function AreCoordsWithinBounds(coords) {
+	if (coords[0] > mapWidth - 1) {
+		return false;
+	}
+	return true;
+}
+
+function GetAdjacentTiles(tile) {
+
 	let adjTiles = [];
+	let tileCoords = tile.XY;
 
-	let centerCoords = targetTile.yx;
-	let yUp = Math.min(centerCoords[0] + 1, mapHeight - 1);
-	let yDown = Math.max(centerCoords[0] - 1, 0);
-	let xUp = Math.min(centerCoords[1] + 1, mapWidth - 1);
-	let xDown = Math.max(centerCoords[1] - 1, 0);
+	let xUpper = tileCoords[0] + 1;
+	if (xUpper < mapWidth) {
+		adjTiles.push(mapGrid[xUpper][tileCoords[1]]);
+	}
+	let xLower = tileCoords[0] - 1;
+	if (xLower > -1) {
+		adjTiles.push(mapGrid[xLower][tileCoords[1]]);
+	}
 
-	adjTiles.push(mapGrid[yUp][centerCoords[1]]);
-	adjTiles.push(mapGrid[yDown][centerCoords[1]]);
-	adjTiles.push(mapGrid[centerCoords[0]][xUp]);
-	adjTiles.push(mapGrid[centerCoords[0]][xDown]);
+	let yUpper = tileCoords[1] + 1;
+	if (yUpper < mapHeight) {
+		adjTiles.push(mapGrid[tileCoords[0]][yUpper]);
+	}
+	let yLower = tileCoords[1] - 1;
+	if (yLower > -1){
+		adjTiles.push(mapGrid[tileCoords[0]][yLower]);
+	}
 
 	return adjTiles;
+}
+
+function GetAdjStructs(targetTile) {
+	let adjTiles = GetAdjacentTiles(targetTile);
+	let adjStructs;
+	adjTiles.forEach(tile => {
+		if (tile.mainStructure != null) {
+			adjStructs.push(tile.mainStructure);
+		}
+	});
+	return adjStructs;
 }
 
 function Init() {
@@ -425,6 +598,7 @@ function Init() {
 	mapWidth = 30;
 	mapHeight = 25;
 
+	allPowerGrids = [];
 	allStructures = [];
 	allCities = [];
 	allPowerLines = [];
@@ -435,7 +609,7 @@ function Init() {
 	tilePixelInterval = 25;
 	canvas = document.getElementById("c");
 	canvas.height = mapHeight * tilePixelInterval;
-	canvas.width = mapWidth * tilePixelInterval;
+	canvas.width = (mapWidth + 5) * tilePixelInterval;
 	ctx = canvas.getContext("2d");
 	canvas.oncontextmenu = () => { return false };
 
@@ -446,14 +620,14 @@ function Init() {
 	canvas.onkeydown = KeyDown;
 	// end of canvas shit
 
-	mapGrid = new Array(mapHeight);
-	for (let y = 0; y < mapHeight; y++) {
-		mapGrid[y] = new Array(mapWidth);
+	mapGrid = new Array(mapWidth);
+	for (let y = 0; y < mapWidth; y++) {
+		mapGrid[y] = new Array(mapHeight);
 	}
 
 	let type;
-	for (let y = 0; y < mapHeight; y++) {
-		for (let x = 0; x < mapWidth; x++) {
+	for (let y = 0; y < mapWidth; y++) {
+		for (let x = 0; x < mapHeight; x++) {
 			type = "plains";
 			if (Math.random() < 0.5) {
 				type = "desertHot";
@@ -514,7 +688,7 @@ function Click(e) {
 			let gridX = Math.floor(mousePos[0] / tilePixelInterval);
 			let gridY = Math.floor(mousePos[1] / tilePixelInterval);
 
-			if (gridX < mapWidth && gridY < mapHeight) {
+			if (gridX < mapHeight && gridY < mapWidth) {
 				selectedTile = mapGrid[gridY][gridX];
 			}
 			else {
@@ -586,7 +760,7 @@ function MouseMove(e) {
 	let gridX = Math.floor(mousePos[0] / tilePixelInterval);
 	let gridY = Math.floor(mousePos[1] / tilePixelInterval);
 
-	if (gridX < mapWidth && gridY < mapHeight && gridX > -1 && gridY > -1) {
+	if (gridX < mapHeight && gridY < mapWidth && gridX > -1 && gridY > -1) {
 		hoveredTile = mapGrid[gridY][gridX];
 	}
 	else {
@@ -633,10 +807,9 @@ function Update() { // 60 times per second
 }
 
 function nextTick() {
-	allStructures.forEach(structure => {
-		structure.Tick();
+	allPowerGrids.forEach(grid => {
+		grid.Tick();
 	});
-	money += incomePerTick;
 	tick++;
 }
 
@@ -645,7 +818,7 @@ function Draw() {
 	ctx.drawImage(mapBackground, 0, 0);//, canvas.width - UI.buttonSize * 3, canvas.height);
 
 	ctx.strokeStyle = 'black';
-	for (let y = 0; y < mapHeight; y++) {
+	for (let y = 0; y < mapWidth; y++) {
 		for (let x = 0; x < mapHeight; x++) {
 			switch (mapGrid[y][x].tileType) {
 				case "plains":
@@ -656,42 +829,42 @@ function Draw() {
 					break;
 			}
 			ctx.fillRect(
-				mapGrid[y][x].pixelYX[0],
-				mapGrid[y][x].pixelYX[1],
+				mapGrid[y][x].pixelXY[0],
+				mapGrid[y][x].pixelXY[1],
 				tilePixelInterval, tilePixelInterval
 			);
 			ctx.strokeRect(
-				mapGrid[y][x].pixelYX[0],
-				mapGrid[y][x].pixelYX[1],
+				mapGrid[y][x].pixelXY[0],
+				mapGrid[y][x].pixelXY[1],
 				tilePixelInterval, tilePixelInterval
 			);
 		}
 	}
 
 	allStructures.forEach(structure => {
-		ctx.drawImage(structure.structureImage, structure.parentTile.pixelYX[0], structure.parentTile.pixelYX[1]);
+		ctx.drawImage(structure.structureImage, structure.parentTile.pixelXY[0], structure.parentTile.pixelXY[1]);
 	});
 
-	if (selectedTile != null) {
-		ctx.strokeStyle = 'cyan';
-		ctx.strokeRect(
-			selectedTile.yx[0] * tilePixelInterval,
-			selectedTile.yx[1] * tilePixelInterval,
-			tilePixelInterval, tilePixelInterval);
-	}
-	if (hoveredTile != null) {
+	if (hoveredTile != null) { //outline hovered tile
 		ctx.strokeStyle = 'white';
 		ctx.strokeRect(
-			hoveredTile.yx[0] * tilePixelInterval,
-			hoveredTile.yx[1] * tilePixelInterval,
+			hoveredTile.XY[0] * tilePixelInterval,
+			hoveredTile.XY[1] * tilePixelInterval,
+			tilePixelInterval, tilePixelInterval);
+	}
+	if (selectedTile != null) { // outline selected tile
+		ctx.strokeStyle = 'cyan';
+		ctx.strokeRect(
+			selectedTile.XY[0] * tilePixelInterval,
+			selectedTile.XY[1] * tilePixelInterval,
 			tilePixelInterval, tilePixelInterval);
 	}
 
 	allPowerLines.forEach(powerLine => { // show power under power line image
 		ctx.fillStyle = 'magenta';
 		ctx.fillRect(
-			powerLine.parentTile.pixelYX[0],
-			powerLine.parentTile.pixelYX[1] + 2,
+			powerLine.parentTile.pixelXY[0],
+			powerLine.parentTile.pixelXY[1] + 2,
 			tilePixelInterval * (powerLine.powerSupply / powerLine.powerSupplyMax),
 			tilePixelInterval / 10
 		);
@@ -699,15 +872,21 @@ function Draw() {
 	allCities.forEach(city => { // show power under power line image
 		ctx.fillStyle = 'magenta';
 		ctx.fillRect(
-			city.parentTile.pixelYX[0],
-			city.parentTile.pixelYX[1] + 2,
+			city.parentTile.pixelXY[0],
+			city.parentTile.pixelXY[1] + 2,
 			tilePixelInterval * (city.powerSupply / city.powerSupplyMax),
 			tilePixelInterval / 10
 		);
 	});
 
-	ctx.fillStyle = 'black';
+	ctx.font = '15px serif';
+	ctx.lineWidth = 7;
+
+	ctx.strokeStyle = 'black';
+	ctx.strokeText("$" + money, canvasWidth - 50, tilePixelInterval);
+	ctx.fillStyle = 'white';
 	ctx.fillText("$" + money, canvasWidth - 50, tilePixelInterval);
+	ctx.lineWidth = 2;
 
 
 	/*  // to tint the image, draw it first
