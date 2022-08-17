@@ -3,20 +3,19 @@ Devlog
 
 2022 
 
-July 2 v0.0.1: beginning
+July 2 v0.0.1 // beginning
 -created clickable grid
 -can spawn cities: generates money
 -can spawn power lines
 -power lines detect nearby power lines
 
-Aug 15 v0.01b: beginnings part 2
+Aug 15 v0.01b // beginnings part 2
 -revamped power system into power grids instead of every part being dynamic
 -will reuse spreading code into heat spreading later
 
 */
 
 let money;
-let incomePerTick;
 
 let mousePos;
 let mapHeight;
@@ -43,175 +42,6 @@ let tilePixelInterval;
 let canvasWidth;
 let canvasHeight;
 
-class WorldTile {
-	constructor(type, posXY) {
-		this.XY = posXY;
-		this.pixelXY = [posXY[0] * tilePixelInterval, posXY[1] * tilePixelInterval];
-		this.tileType = type;
-
-		this.mainStructure = null; // only 1 of main building on tile
-		this.infrastructure = null; // can have multiple types of infrastructure on 1 tile
-
-		this.cityGrowthMultiplier; // higher level = nobody wants to live there + more maintenance cost
-		this.difficultTerrainLevel;
-
-
-		// defaults all to 1x
-
-		this.maintenanceMultiplier = 1;
-
-		this.solarMultiplier = 1;
-		this.windMultiplier = 1;
-		this.hydroMultiplier = 1;
-		this.geoThermalMultiplier = 1;
-
-		this.cityGrowthMultiplier = 1;
-		this.adjCityGrowthMultiplier = 1;
-		this.researchMultiplier = 1;
-
-
-		switch (type) {
-			case "plains":
-				this.maintenanceMultiplier = 1; // relatively peaceful
-
-				this.solarMultiplier = 1;
-				this.windMultiplier = 1.5;
-
-				this.hydroMultiplier = 0; // cant build
-				this.geoThermalMultiplier = 1;
-
-				this.cityGrowthMultiplier = 1;
-				this.researchMultiplier = 1;
-				break;
-			case "river":
-				this.maintenanceMultiplier = 2;
-
-				this.solarMultiplier = 1;
-				this.windMultiplier = 1;
-
-				this.hydroMultiplier = 1;
-				this.geoThermalMultiplier = 1;
-
-				this.cityGrowthMultiplier = 0; // cant build city on river
-				this.researchMultiplier = 1;
-				break;
-			case "desertHot":
-				this.maintenanceMultiplier = 2;
-
-				this.solarMultiplier = 2;
-				this.windMultiplier = 1.25;
-
-				this.hydroMultiplier = 0;// cant build
-				this.geoThermalMultiplier = 1;
-
-				this.cityGrowthMultiplier = 0.66;
-				this.researchMultiplier = 1.5;
-				break;
-			case "desertCold":
-				this.maintenanceMultiplier = 5;
-
-				this.solarMultiplier = 0.66;
-				this.windMultiplier = 1.5;
-
-				this.hydroMultiplier = 0;// cant build
-				this.geoThermalMultiplier = 1;
-
-				this.cityGrowthMultiplier = 0.1;
-				this.researchMultiplier = 5;
-				break;
-			case "waterfall":
-				this.maintenanceMultiplier = 5; // water spray? lol
-
-				this.solarMultiplier = 1;
-				this.windMultiplier = 1.25;
-
-				this.hydroMultiplier = 10; // massive
-				this.geoThermalMultiplier = 1;
-
-				this.cityGrowthMultiplier = 0; // cant build
-				this.researchMultiplier = 0; // cant build
-				break;
-			case "mountains":
-				this.maintenanceMultiplier = 5;
-
-				this.solarMultiplier = 1.25;
-				this.windMultiplier = 2;
-
-				this.hydroMultiplier = 0; // cant build
-				this.geoThermalMultiplier = 1;
-
-				this.cityGrowthMultiplier = 0.1;
-				this.researchMultiplier = 4;
-				break;
-			case "volcano":
-				this.maintenanceMultiplier = 10;
-
-				this.solarMultiplier = 1.25;
-				this.windMultiplier = 2;
-
-				this.hydroMultiplier = 0;// cant build
-				this.geoThermalMultiplier = 20; // massive
-
-				this.cityGrowthMultiplier = 0; // cant build
-				this.researchMultiplier = 20; // massive
-				break;
-		}
-	}
-
-	Update() {
-
-	}
-}
-
-class PowerGrid { // a group of things connected by power lines
-	constructor() {
-		this.gridIndex = allPowerGrids.length;
-		this.allStructures = [];
-
-		this.powerSupplyMax = 0;
-		this.powerSupply = 0;
-		this.powerGeneration = 0;
-		this.powerConsumption = 0;
-		this.maintenanceCost = 0;
-	}
-
-	Update() {
-		this.allStructures.forEach(structure => {
-			switch (structure.structType) {
-				case "city":
-					this.powerConsumption += structure.consumption;
-					break;
-				case "powerLine":
-					this.maintenanceCost += structure.maintenanceCost;
-					break;
-				case "solarPanel":
-					this.powerGeneration += structure.powerProduction;
-					break;
-			}
-		});
-	}
-
-	Tick() {
-		// generates power
-		this.powerSupply += this.powerGeneration;
-		if (this.powerSupply > this.powerSupplyMax) {
-			this.powerSupply = this.powerSupplyMax;
-		}
-
-		// depletes power for money
-		let powerConsumed = 0;
-		if (this.powerSupply >= this.powerConsumption) {
-			powerConsumed = this.powerConsumption;
-			this.powerSupply -= this.powerConsumption;
-		}
-		else {
-			powerConsumed = this.powerSupply;
-			this.powerSupply = 0;
-		}
-		money += powerConsumed;
-	}
-}
-
 function AddToPowerGrid(newStructure) {
 
 	// find adjacent structures
@@ -221,7 +51,7 @@ function AddToPowerGrid(newStructure) {
 		if (tile.mainStructure != null) {
 			adjTileStructures.push(tile.mainStructure);
 		}
-		if(tile.infrastructure != null){
+		if (tile.infrastructure != null) {
 			adjTileStructures.push(tile.infrastructure);
 		}
 	});
@@ -233,34 +63,34 @@ function AddToPowerGrid(newStructure) {
 		let newPowerGrid = new PowerGrid();
 		allPowerGrids.push(newPowerGrid);
 		newStructure.parentGrid = newPowerGrid;
-		newPowerGrid.allStructures.push(newStructure);
+		newPowerGrid.AddStructure(newStructure);
 	}
 	else {
 		if (adjTileStructures.length == 1) { // if there is touching 1 power grid
 			console.log("structure added to existing grid");
-			adjTileStructures[0].parentGrid.allStructures.push(newStructure);
+			adjTileStructures[0].parentGrid.AddStructure(newStructure);
 			newStructure.parentGrid = adjTileStructures[0].parentGrid;
 		}
-		else { 
+		else {
 			console.log("structure touches multiple structures, if multiple grids combine them");
 			// if it touches >1 structures, check if they are the same power grid
 			//if different power grids, make all structures in one of them part of the first power grid, delete unused grid
 			let dominantGrid = adjTileStructures[0].parentGrid;
 			newStructure.parentGrid = dominantGrid;
-			dominantGrid.allStructures.push(newStructure);
+			dominantGrid.AddStructure(newStructure);
 			let gridsToBeDeleted = [];
 			adjTileStructures.forEach(structure => {
 				if (structure.parentGrid != dominantGrid) {
 					gridsToBeDeleted.push(structure.parentGrid);
 					structure.parentGrid.allStructures.forEach(structureToBeMoved => {
 						structureToBeMoved.parentGrid = dominantGrid;
-						dominantGrid.allStructures.push(structureToBeMoved);
+						dominantGrid.AddStructure(structureToBeMoved);
 					});
 
 					// delete gridsToBeDeleted from allPowerGrids
 					gridsToBeDeleted.forEach(grid => {
-						for(let i = 0; i < allPowerGrids.length; i++){
-							if(allPowerGrids[i] == grid){
+						for (let i = 0; i < allPowerGrids.length; i++) {
+							if (allPowerGrids[i] == grid) {
 								allPowerGrids.splice(i, 1);
 								break;
 							}
@@ -273,7 +103,7 @@ function AddToPowerGrid(newStructure) {
 }
 
 function RemoveFromPowerGrid(structure) { // makes sure the power grid is still connected, otherwise make a new power grid for the separated part
-	GetAdjacentTiles(structure.parentTile);
+	let adjTiles = GetAdjacentTiles(structure.parentTile);
 }
 
 class Structure {
@@ -288,246 +118,18 @@ class MainStructure extends Structure {
 
 		super(parentTile);
 
-		this.parentGrid;
+		this.parentGrid = null;
 
 		this.baseBuildPrice = 0;
 
-		this.structCategory = "default";
-		this.structType = "default";
+		this.structCategory = "your code doesnt work dumbass";
+		this.structType = "your code doesnt work dumbass";
 		this.parentTile = parentTile;
 
 		this.maintenanceCost = null;
 	}
 }
 
-class CityStructure extends MainStructure {
-	constructor(parentTile) {
-		super(parentTile);
-
-		this.isConsuming = false;
-		this.structCategory = "general";
-		this.structType = "city";
-		this.baseBuildPrice = 100;
-		this.structureImage = cityImage;
-	}
-
-	Init() {
-		this.size = 1; // size of city (increases power used)
-		this.growth = 1.1; // size multiplier when upgraded
-		this.powerSupply = 0; // current power supply
-		this.powerSupplyMax = 20; // good for 20 ticks
-		this.consumption = 1; // current amount of power wanted
-
-		if (this.parentTile.tileType == "desertHot"
-			|| this.parentTile.tileType == "desertCold") { // 2x power consumption
-			this.consumption *= 2;
-			this.growth = 1.05;
-		}
-
-		allCities.push(this);
-		AddToPowerGrid(this);
-		this.Update();
-	}
-
-	Tick() {
-		if (this.isConsuming) {
-			this.powerSupply -= this.consumption;
-		}
-		if (this.powerSupply < 0) {
-			this.isConsuming = false;
-			UpdateAroundTile(this.parentTile);
-			UpdateIncome();
-		}
-		else {
-			if (!this.isConsuming) {
-				if (this.powerSupply > 0) {
-					this.isConsuming = true;
-					UpdateIncome();
-				}
-			}
-		}
-	}
-
-	Update() {
-		this.UpdateSelf();
-		UpdateAroundTile(this.parentTile);
-	}
-
-	UpdateSelf() {
-
-	}
-}
-
-class PowerLineStructure extends MainStructure {
-	constructor(parentTile) {
-		super(parentTile);
-
-		this.structureImage = powerLineImage;
-
-		this.powerSupply = 0;
-		this.nextTickPowerSupply = 0;
-		this.powerSupplyMax = 10;
-		this.maintenanceCost = null;
-
-		this.structCategory = "infrastructure";
-		this.structType = "powerLine";
-		this.baseBuildPrice = 50;
-
-		this.adjPowerLines = [];
-		this.adjCities = [];
-	}
-
-	Init() {
-		allPowerLines.push(this);
-		this.Update();
-		AddToPowerGrid(this);
-	}
-
-	Tick() {
-
-	}
-
-	Update() {
-		this.UpdateSelf();
-		UpdateAroundTile(this.parentTile);
-	}
-
-	UpdateSelf() {
-
-	}
-}
-
-// finish later
-class HeatPipeStructure extends MainStructure {
-
-	// will use this code for heat spreading instead of power spreading
-	/* 
-	
-	Tick() {
-
-		this.SpreadPower();
-
-		let fairShare = this.powerSupply / this.adjCities.length;
-
-		while (this.AnyAdjCityNeedsPower() && this.powerSupply > 0) { // if any city needs power and this has power left
-
-			this.adjCities.forEach(city => {
-				if (city.powerSupply < city.powerSupplyMax) { // the city wants power
-					let amountToGive = city.powerSupplyMax - city.powerSupply; // amount city wants
-					if (amountToGive > fairShare) { // if city wants more than its fair share
-						amountToGive = fairShare;
-					}
-
-					if (this.powerSupply >= amountToGive) { // if powerLine has enough power to fill amount wanted
-						city.powerSupply += amountToGive;
-						this.powerSupply -= amountToGive;
-					}
-					else {
-						city.powerSupply += this.powerSupply;
-						this.powerSupply = 0;
-					}
-				}
-			});
-		}
-	}
-
-	SpreadPower() {
-		if (this.powerSupply / this.powerSupplyMax >= 0.98) { // at or very close to max powerSupply
-
-		}
-		else {
-			this.adjPowerLines.forEach(adjLine => { // spreading power across other power lines
-				if (this.powerSupply != adjLine.powerSupply) { // works for both pos and neg power supply diff
-					let diff = this.powerSupply - adjLine.powerSupply;
-					this.powerSupply -= diff / 2;
-					adjLine.powerSupply += diff / 2;
-				}
-			});
-		}
-	}
-
-	Update() {
-		this.CheckSurroundingTiles();
-		UpdateAroundTile(this.parentTile);
-	}
-
-	CheckSurroundingTiles() {
-		this.adjPowerLines = [];
-		this.adjCities = [];
-
-		let adjTiles = GetAdjacentTiles(this.parentTile);
-		adjTiles.forEach(tile => {
-			if (tile.infrastructure != null) {
-				if (tile.infrastructure.structType == "powerLine") {
-					console.log("power line found at " + tile.XY[1] + ", " + tile.XY[0]);
-					this.adjPowerLines.push(tile.infrastructure);
-				}
-			}
-			if (tile.mainStructure != null) {
-				if (tile.mainStructure.structType == "city") {
-					console.log("power line found city");
-					this.adjCities.push(tile.mainStructure);
-				}
-			}
-		});
-	}
-
-	AnyAdjCityNeedsPower() {
-		let output = false;
-		this.adjCities.forEach(city => {
-			if (city.powerSupply < city.powerSupplyMax) {
-				output = true;
-			}
-		});
-
-		return output;
-	}
-	*/
-}
-
-class SolarPanelStructure extends Structure {
-	constructor(parentTile) {
-		super(parentTile);
-		this.structureImage = solarPanelImage;
-
-		this.baseBuildPrice = 150;
-
-		this.structCategory = "reactor";
-		this.structType = "solarPanel";
-		this.powerProduction = 0.5; // production of power
-		this.maxOutputPerConnection = 1; // most it can dish out for one adjacent power line 
-		this.connectedLines = [];
-
-		this.tickPowerLeft = 0;
-	}
-
-	Init() {
-		allSolarPanels.push(this);
-		this.Update();
-	}
-
-	Tick() {
-		// parentGrid ticks instead of individual panels
-	}
-
-	Update() {
-		this.UpdateSelf();
-		UpdateAroundTile(this.parentTile);
-	}
-
-	UpdateSelf() {
-		this.connectedLines = [];
-		let adjTiles = GetAdjacentTiles(this.parentTile);
-		adjTiles.forEach(tile => {
-			if (tile.infrastructure != null) {
-				if (tile.infrastructure.structType == "powerLine") {
-					console.log("solar panel detected power line");
-					this.connectedLines.push(tile.infrastructure);
-				}
-			}
-		});
-	}
-}
 
 function UpdateAroundTile(targetTile) {
 	let adjTiles = GetAdjacentTiles(targetTile);
@@ -567,7 +169,7 @@ function GetAdjacentTiles(tile) {
 		adjTiles.push(mapGrid[tileCoords[0]][yUpper]);
 	}
 	let yLower = tileCoords[1] - 1;
-	if (yLower > -1){
+	if (yLower > -1) {
 		adjTiles.push(mapGrid[tileCoords[0]][yLower]);
 	}
 
@@ -589,7 +191,6 @@ function Init() {
 
 	//always displayed game info
 	money = 10000;
-	incomePerTick = 0;
 
 	// keeping track
 	tick = 0;
@@ -664,7 +265,7 @@ function Init() {
 		}
 	}, false);
 
-	setInterval(() => { Update(); Draw(); }, 16);
+	setInterval(() => { Update(); DrawImmediate(); }, 16);
 }
 
 function KeyDown(key) {
@@ -708,7 +309,6 @@ function Click(e) {
 								allStructures.push(selectedThingToBuild);
 								selectedThingToBuild.Init();
 								selectedThingToBuild = null;
-								UpdateIncome();
 							}
 							else {
 								console.log("cant build here");
@@ -722,7 +322,6 @@ function Click(e) {
 								allStructures.push(selectedThingToBuild);
 								selectedThingToBuild.Init();
 								selectedThingToBuild = null;
-								UpdateIncome();
 							}
 							else {
 								console.log("cant build here");
@@ -736,7 +335,6 @@ function Click(e) {
 								allStructures.push(selectedThingToBuild);
 								selectedThingToBuild.Init();
 								selectedThingToBuild = null;
-								UpdateIncome();
 							}
 							else {
 								console.log("cant build here");
@@ -768,52 +366,27 @@ function MouseMove(e) {
 	}
 }
 
-function UpdateIncome() {
-	incomePerTick = 0;
-	allStructures.forEach(structure => {
-		if (structure.structType == "city") {
-			if (structure.isConsuming) {
-				incomePerTick += structure.consumption;
-			}
-		}
-	});
-}
 
 function Update() { // 60 times per second
 
 	frame++;
-
-	/*
-	for (let i = 0; i < towers.length; i++) {
-		towers[i].Update();
-	}
-	*/
 	if (frame > nextTickFrame) {
 		nextTick();
 		nextTickFrame = frame + 60;
 	}
-
-
-	/*
-	allCities.forEach(structure => {
-		if(structure.powerSupply >= structure.consumption){ // can use energy
-			powerSupply -= structure.consumption;	
-		}
-		else{
-			structure.
-		}
-	});*/
-	Draw();
+	DrawImmediate();
 }
 
 function nextTick() {
 	allPowerGrids.forEach(grid => {
+		//generates power then depletes it for power
 		grid.Tick();
 	});
+	DrawPerTick();
 	tick++;
 }
 
-function Draw() {
+function DrawPerTick() {
 
 	ctx.drawImage(mapBackground, 0, 0);//, canvas.width - UI.buttonSize * 3, canvas.height);
 
@@ -833,6 +406,19 @@ function Draw() {
 				mapGrid[y][x].pixelXY[1],
 				tilePixelInterval, tilePixelInterval
 			);
+		}
+	}
+}
+
+function DrawImmediate() {
+	
+	allStructures.forEach(structure => {
+		ctx.drawImage(structure.structureImage, structure.parentTile.pixelXY[0], structure.parentTile.pixelXY[1]);
+	});
+
+	ctx.strokeStyle = 'black';
+	for (let y = 0; y < mapWidth; y++) {
+		for (let x = 0; x < mapHeight; x++) {
 			ctx.strokeRect(
 				mapGrid[y][x].pixelXY[0],
 				mapGrid[y][x].pixelXY[1],
@@ -840,11 +426,6 @@ function Draw() {
 			);
 		}
 	}
-
-	allStructures.forEach(structure => {
-		ctx.drawImage(structure.structureImage, structure.parentTile.pixelXY[0], structure.parentTile.pixelXY[1]);
-	});
-
 	if (hoveredTile != null) { //outline hovered tile
 		ctx.strokeStyle = 'white';
 		ctx.strokeRect(
@@ -860,32 +441,22 @@ function Draw() {
 			tilePixelInterval, tilePixelInterval);
 	}
 
-	allPowerLines.forEach(powerLine => { // show power under power line image
-		ctx.fillStyle = 'magenta';
-		ctx.fillRect(
-			powerLine.parentTile.pixelXY[0],
-			powerLine.parentTile.pixelXY[1] + 2,
-			tilePixelInterval * (powerLine.powerSupply / powerLine.powerSupplyMax),
-			tilePixelInterval / 10
-		);
-	});
-	allCities.forEach(city => { // show power under power line image
-		ctx.fillStyle = 'magenta';
-		ctx.fillRect(
-			city.parentTile.pixelXY[0],
-			city.parentTile.pixelXY[1] + 2,
-			tilePixelInterval * (city.powerSupply / city.powerSupplyMax),
-			tilePixelInterval / 10
-		);
-	});
-
 	ctx.font = '15px serif';
 	ctx.lineWidth = 7;
 
-	ctx.strokeStyle = 'black';
-	ctx.strokeText("$" + money, canvasWidth - 50, tilePixelInterval);
 	ctx.fillStyle = 'white';
-	ctx.fillText("$" + money, canvasWidth - 50, tilePixelInterval);
+	ctx.fillRect(
+		canvasWidth - tilePixelInterval * 2,
+		tilePixelInterval/3,
+		200,
+		tilePixelInterval
+	);
+
+
+	ctx.strokeStyle = 'black';
+	ctx.strokeText("$" + money, canvasWidth - 48, tilePixelInterval);
+	ctx.fillStyle = 'white';
+	ctx.fillText("$" + money, canvasWidth - 48, tilePixelInterval);
 	ctx.lineWidth = 2;
 
 
