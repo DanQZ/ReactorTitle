@@ -13,6 +13,10 @@ Aug 15 v0.01b // beginnings part 2
 -revamped power system into power grids instead of every part being dynamic
 -will reuse spreading code into heat spreading later
 
+Aug 17 v0.01c // beginnings part 3
+-split into multiple js files
+-power grid fully functional will add more content next update
+
 */
 
 let money;
@@ -411,7 +415,7 @@ function DrawPerTick() {
 }
 
 function DrawImmediate() {
-	
+
 	allStructures.forEach(structure => {
 		ctx.drawImage(structure.structureImage, structure.parentTile.pixelXY[0], structure.parentTile.pixelXY[1]);
 	});
