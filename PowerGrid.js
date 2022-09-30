@@ -10,9 +10,6 @@ class PowerGrid { // a group of things connected by power lines
         this.powerGeneration = 0;
         this.powerConsumption = 0;
         this.maintenanceCost = 0;
-
-        this.oilProduction = 0;
-
     }
 
     Update() {
@@ -48,6 +45,7 @@ class PowerGrid { // a group of things connected by power lines
         }
         // console.log("consumed " + powerConsumed + " power");
         money += powerConsumed;
+
     }
 
     AddStructure(newStructure) {

@@ -417,6 +417,9 @@ function NextTick() { // once per second
 		//generates power then depletes it for power
 		grid.Tick();
 	});
+	allExtractors.forEach(extractor => {
+		extractor.Tick();
+	});
 	DrawPerTick();
 	tick++;
 }
