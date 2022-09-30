@@ -1,17 +1,14 @@
-class SolarPanelStructure extends MainStructure {
+class SolarPanelStructure extends Structure {
 	constructor(parentTile) {
 		super(parentTile);
 		this.structureImage = solarPanelImage;
 
 		this.baseBuildPrice = 150;
 
-		this.structCategory = "reactor";
-		this.structType = "solarPanel";
-		this.powerProduction = 0.25; // production of power
-		this.maxOutputPerConnection = 1; // most it can dish out for one adjacent power line 
-		this.connectedLines = [];
+		this.structCategory = "mainStructure";
+		this.structDesignation = "solarPanel";
 
-		this.tickPowerLeft = 0;
+		this.powerProduction = 0.25; // production of power
 	}
 
 	Init() {

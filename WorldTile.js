@@ -1,16 +1,15 @@
 
 class WorldTile {
-	constructor(tileTypeArg, xyArg, resourceTypeArg) {
+	constructor(tileTypeArg, xyArg) {
 		this.XY = xyArg;
 		this.pixelXY = [xyArg[0] * tilePixelInterval, xyArg[1] * tilePixelInterval];
 		this.tileType = tileTypeArg;
-        this.tileResource = resourceTypeArg;
 
+		this.resource = null;
 		this.mainStructure = null; // only 1 of main building on tile
 		this.infrastructure = null; // can have multiple types of infrastructure on 1 tile
 
-		this.cityGrowthMultiplier; // higher level = nobody wants to live there + more maintenance cost
-		this.difficultTerrainLevel;
+		this.cityGrowthMultiplier; // lower = nobody wants to live there + more maintenance cost
 
 
 		// defaults all to 1x

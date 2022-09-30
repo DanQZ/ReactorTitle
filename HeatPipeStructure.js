@@ -1,5 +1,5 @@
 // finish later
-class HeatPipeStructure extends MainStructure {
+class HeatPipeStructure extends Structure {
 
 	// will use this code for heat spreading instead of power spreading
 	/* 

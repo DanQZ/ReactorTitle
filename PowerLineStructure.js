@@ -1,5 +1,5 @@
 
-class PowerLineStructure extends MainStructure {
+class PowerLineStructure extends Structure {
 	constructor(parentTile) {
 		super(parentTile);
 

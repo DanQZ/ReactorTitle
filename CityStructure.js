@@ -1,14 +1,14 @@
-
-class CityStructure extends MainStructure {
+class CityStructure extends Structure {
 	constructor(parentTile) {
 		super(parentTile);
-
-		this.isConsuming = false;
-		this.structCategory = "general";
-		this.structType = "city";
-		this.baseBuildPrice = 100;
 		this.structureImage = cityImage;
 
+		this.baseBuildPrice = 100;
+		
+		this.structCategory = "mainStructure";
+		this.structDesignation = "city";
+
+		this.isConsuming = false;
 		this.powerStorage = 100;
 	}
 
@@ -26,10 +26,6 @@ class CityStructure extends MainStructure {
 		allCities.push(this);
 		AddToPowerGrid(this);
 		this.Update();
-	}
-
-	Tick() {
-
 	}
 
 	Update() {
